@@ -11,9 +11,7 @@ require_once __DIR__ . '/../views/layout_top.php';
 
   <div class="card__body">
     <?php if (isset($_SESSION['error'])): ?>
-      <div class="alert alert--error">
-        <?php echo htmlspecialchars($_SESSION['error']); ?>
-      </div>
+      <div class="alert alert--error"><?php echo htmlspecialchars($_SESSION['error']); ?></div>
       <?php unset($_SESSION['error']); ?>
       <div style="height: 10px;"></div>
     <?php endif; ?>

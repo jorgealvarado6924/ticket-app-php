@@ -7,7 +7,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-$email = trim($_POST['email'] ?? '');
+$email    = trim($_POST['email'] ?? '');
 $password = trim($_POST['password'] ?? '');
 
 if ($email === '' || $password === '') {
@@ -21,13 +21,13 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute([$email]);
 $user = $stmt->fetch();
 
+
 if (!$user || !password_verify($password, $user['password'])) {
     $_SESSION['error'] = "Invalid credentials";
     header("Location: login.php");
     exit;
 }
 
-// Sesión mínima necesaria
 $_SESSION['user_id']  = (int)$user['id'];
 $_SESSION['username'] = $user['username'];
 $_SESSION['role']     = $user['role'];

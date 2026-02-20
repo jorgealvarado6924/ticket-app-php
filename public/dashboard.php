@@ -2,10 +2,8 @@
 $pageTitle = "Dashboard";
 require_once __DIR__ . '/../views/layout_top.php';
 
-if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
-    exit;
-}
+require_once __DIR__ . '/../src/auth/guards.php';
+require_auth();
 ?>
 
 <div class="card">
@@ -15,21 +13,17 @@ if (!isset($_SESSION['user_id'])) {
   </div>
 
   <div class="card__body">
-    <div class="alert alert--success">
-      ✅ Access granted. Session is working.
-    </div>
+    <div class="alert alert--success">✅ Access granted. Session is working.</div>
 
     <div style="height: 14px;"></div>
 
-    <p class="muted">
-      Role: <strong><?php echo htmlspecialchars($_SESSION['role']); ?></strong>
-    </p>
+    <p class="muted">Role: <strong><?php echo htmlspecialchars($_SESSION['role']); ?></strong></p>
 
     <div style="height: 14px;"></div>
 
-    <a class="btn btn--ghost" href="logout.php" style="text-decoration:none; display:inline-block;">
-      Logout
-    </a>
+    <a class="btn" href="profile.php" style="text-decoration:none; display:inline-block;">Profile</a>
+    <a class="btn btn--ghost" href="admin.php" style="text-decoration:none; display:inline-block;">Admin</a>
+    <a class="btn btn--ghost" href="logout.php" style="text-decoration:none; display:inline-block;">Logout</a>
   </div>
 </div>
 
