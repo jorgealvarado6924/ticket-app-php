@@ -12,19 +12,24 @@ require_auth();
     <p class="subtitle">You are logged in as <strong><?php echo htmlspecialchars($_SESSION['username']); ?></strong>.</p>
   </div>
 
-  <div class="card__body">
-    <div class="alert alert--success">✅ Access granted. Session is working.</div>
+    <div class="card__body">
+        <div class="alert alert--success">✅ Access granted. Session is working.</div>
 
-    <div style="height: 14px;"></div>
+        <div style="height: 14px;"></div>
 
-    <p class="muted">Role: <strong><?php echo htmlspecialchars($_SESSION['role']); ?></strong></p>
+        <p class="muted">Role: <strong><?php echo htmlspecialchars($_SESSION['role']); ?></strong></p>
 
-    <div style="height: 14px;"></div>
+        <div style="height: 14px;"></div>
 
-    <a class="btn" href="profile.php" style="text-decoration:none; display:inline-block;">Profile</a>
-    <a class="btn btn--ghost" href="admin.php" style="text-decoration:none; display:inline-block;">Admin</a>
-    <a class="btn btn--ghost" href="logout.php" style="text-decoration:none; display:inline-block;">Logout</a>
+        <a class="btn" href="tickets.php" style="text-decoration:none; display:inline-block;">Tickets</a>
+        <a class="btn btn--ghost" href="profile.php" style="text-decoration:none; display:inline-block;">Profile</a>
+
+        <?php if ($_SESSION['role'] === 'admin'): ?>
+          <a class="btn btn--ghost" href="admin.php" style="text-decoration:none; display:inline-block;">Admin</a>
+        <?php endif; ?>
+
+        <a class="btn btn--ghost" href="logout.php" style="text-decoration:none; display:inline-block;">Logout</a>
+    </div>
   </div>
-</div>
 
 <?php require_once __DIR__ . '/../views/layout_bottom.php'; ?>
