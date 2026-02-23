@@ -29,7 +29,7 @@ if (!$ticket) {
     exit("Not found");
 }
 
-// Seguridad: user solo puede ver sus tickets
+// Security: user just can see their tickets
 if ($role !== 'admin' && (int)$ticket['user_id'] !== $userId) {
     http_response_code(403);
     exit("403 Forbidden");
@@ -48,12 +48,23 @@ if ($role !== 'admin' && (int)$ticket['user_id'] !== $userId) {
   </div>
 
   <div class="card__body">
+        <?php if (isset($_SESSION['error'])): ?>
+        <div class="alert alert--error"><?php echo htmlspecialchars($_SESSION['error']); ?></div>
+        <?php unset($_SESSION['error']); ?>
+        <div style="height: 10px;"></div>
+        <?php endif; ?>
     <h3 style="margin-top:0;"><?php echo htmlspecialchars($ticket['title']); ?></h3>
     <p style="white-space:pre-wrap;"><?php echo htmlspecialchars($ticket['description']); ?></p>
 
     <div style="height: 14px;"></div>
 
 <?php if ($ticket['status'] === 'open'): ?>
+  <a class="btn btn--ghost"
+     href="ticket_edit.php?id=<?php echo (int)$ticket['id']; ?>"
+     style="text-decoration:none; display:inline-block;">
+     Edit
+  </a>
+
   <form action="ticket_close.php" method="POST" style="display:inline-block;">
     <input type="hidden" name="id" value="<?php echo (int)$ticket['id']; ?>">
     <button class="btn" type="submit">Close ticket</button>
@@ -63,8 +74,6 @@ if ($role !== 'admin' && (int)$ticket['user_id'] !== $userId) {
 <?php endif; ?>
 
 <a class="btn btn--ghost" href="tickets.php" style="text-decoration:none; display:inline-block;">Back</a>
-
-
 </div>
 
 <?php require_once __DIR__ . '/../views/layout_bottom.php'; ?>

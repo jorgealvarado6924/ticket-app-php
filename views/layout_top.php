@@ -15,10 +15,14 @@ if (session_status() === PHP_SESSION_NONE) {
   <div class="page">
     <header class="header">
       <div class="container">
-        <a class="brand" href="index.php">
-          <span>Ticket App</span>
-          <span class="badge">PHP + MySQL</span>
-        </a>
+          <?php
+            $brandLink = isset($_SESSION['user_id']) ? 'dashboard.php' : 'login.php';
+          ?>
+
+          <a class="brand" href="<?php echo $brandLink; ?>">
+            <span>Ticket App</span>
+            <span class="badge">PHP + MySQL</span>
+          </a>
       </div>
     </header>
 
