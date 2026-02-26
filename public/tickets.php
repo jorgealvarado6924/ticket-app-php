@@ -62,12 +62,25 @@ if ($status !== 'all') {
   $params[] = $status;
 }
 
-// Search filter
+
+ // Search filter (HYBRID: LIKE for short terms, FULLTEXT for >= 3)
 if ($q !== '') {
-  $where[] = "(t.title LIKE ? OR t.description LIKE ?)";
-  $like = "%" . $q . "%";
-  $params[] = $like;
-  $params[] = $like;
+    $qNorm = trim($q);
+
+    // Cuenta caracteres de forma segura (UTF-8)
+    $len = function_exists('mb_strlen') ? mb_strlen($qNorm) : strlen($qNorm);
+
+    if ($len < 3) {
+        // LIKE para términos cortos
+        $where[] = "(t.title LIKE ? OR t.description LIKE ?)";
+        $like = "%" . $qNorm . "%";
+        $params[] = $like;
+        $params[] = $like;
+    } else {
+        // FULLTEXT para términos normales
+        $where[] = "MATCH(t.title, t.description) AGAINST (? IN NATURAL LANGUAGE MODE)";
+        $params[] = $qNorm;
+    }
 }
 
 $whereSql = count($where) ? ("WHERE " . implode(" AND ", $where)) : "";
