@@ -40,11 +40,25 @@ switch ($sort) {
     break;
 }
 
+// Normalizamos q (para lógica híbrida y “open/closed”)
+$isFulltext = false;
+$qNorm = trim($q);
+$qLen = ($qNorm !== '') ? (function_exists('mb_strlen') ? mb_strlen($qNorm) : strlen($qNorm)) : 0;
+
+// Si el usuario escribe open/closed en el buscador, lo tratamos como filtro
+$qLower = strtolower($qNorm);
+if ($qLower === 'open' || $qLower === 'closed') {
+  $status = $qLower;
+  $qNorm = '';
+  $q = '';
+  $qLen = 0;
+}
+
 // --- Pagination (GET) ---
 $page = (int)($_GET['page'] ?? 1);
 if ($page < 1) $page = 1;
 
-$perPage = 10; // cambia a 8/12 si prefieres
+$perPage = 10;
 $offset = ($page - 1) * $perPage;
 
 $where = [];
@@ -62,28 +76,37 @@ if ($status !== 'all') {
   $params[] = $status;
 }
 
+/**
+ * Search filter (Enterprise-friendly):
+ * - LIKE SIEMPRE filtra (para que 1+ caracteres funcione siempre)
+ * - FULLTEXT SOLO añade "score" y ordena por relevancia si qLen >= 3
+ */
+$scoreSelect = "";
+$scoreOrder  = "";
 
- // Search filter (HYBRID: LIKE for short terms, FULLTEXT for >= 3)
-if ($q !== '') {
-    $qNorm = trim($q);
+if ($qNorm !== '') {
+  // Filtrado robusto con LIKE
+  $where[] = "(t.title LIKE ? OR t.description LIKE ?)";
+  $like = "%" . $qNorm . "%";
+  $params[] = $like;
+  $params[] = $like;
 
-    // Cuenta caracteres de forma segura (UTF-8)
-    $len = function_exists('mb_strlen') ? mb_strlen($qNorm) : strlen($qNorm);
-
-    if ($len < 3) {
-        // LIKE para términos cortos
-        $where[] = "(t.title LIKE ? OR t.description LIKE ?)";
-        $like = "%" . $qNorm . "%";
-        $params[] = $like;
-        $params[] = $like;
-    } else {
-        // FULLTEXT para términos normales
-        $where[] = "MATCH(t.title, t.description) AGAINST (? IN NATURAL LANGUAGE MODE)";
-        $params[] = $qNorm;
-    }
+  // Relevancia con FULLTEXT (solo ordenar, no filtrar)
+  if ($qLen >= 3) {
+    $isFulltext = true;
+    $scoreSelect = ", MATCH(t.title, t.description) AGAINST (? IN NATURAL LANGUAGE MODE) AS score";
+    $scoreOrder  = "score DESC, ";
+  }
 }
 
 $whereSql = count($where) ? ("WHERE " . implode(" AND ", $where)) : "";
+
+// Params para SELECT si hay score (tiene un placeholder extra)
+$paramsForSelect = $params;
+if ($isFulltext) {
+  // El placeholder del scoreSelect va ANTES que los del WHERE
+  array_unshift($paramsForSelect, $qNorm);
+}
 
 /**
  * 1) COUNT total results (para saber páginas)
@@ -102,22 +125,22 @@ $offset = ($page - 1) * $perPage;
  * 2) Query paginada
  */
 if ($role === 'admin') {
-  $sql = "SELECT t.id, t.title, t.status, t.created_at, u.username
-        FROM tickets t
-        JOIN users u ON u.id = t.user_id
-        $whereSql
-        ORDER BY $orderBy
-        LIMIT $perPage OFFSET $offset";
+  $sql = "SELECT t.id, t.title, t.status, t.created_at, u.username $scoreSelect
+            FROM tickets t
+            JOIN users u ON u.id = t.user_id
+            $whereSql
+            ORDER BY {$scoreOrder}{$orderBy}
+            LIMIT $perPage OFFSET $offset";
 } else {
-  $sql = "SELECT t.id, t.title, t.status, t.created_at
-        FROM tickets t
-        $whereSql
-        ORDER BY $orderBy
-        LIMIT $perPage OFFSET $offset";
+  $sql = "SELECT t.id, t.title, t.status, t.created_at $scoreSelect
+            FROM tickets t
+            $whereSql
+            ORDER BY {$scoreOrder}{$orderBy}
+            LIMIT $perPage OFFSET $offset";
 }
 
 $stmt = $pdo->prepare($sql);
-$stmt->execute($params);
+$stmt->execute($isFulltext ? $paramsForSelect : $params);
 $tickets = $stmt->fetchAll();
 
 function h(string $s): string
@@ -136,9 +159,10 @@ function build_query(array $overrides = []): string
   $merged = array_merge($base, $overrides);
 
   // limpia params vacíos
-  if ($merged['q'] === '') unset($merged['q']);
-  if ($merged['status'] === 'all') unset($merged['status']);
+  if (($merged['q'] ?? '') === '') unset($merged['q']);
+  if (($merged['status'] ?? 'all') === 'all') unset($merged['status']);
   if (($merged['sort'] ?? 'recent') === 'recent') unset($merged['sort']);
+
   return http_build_query($merged);
 }
 
@@ -167,6 +191,12 @@ $to   = min($offset + $perPage, $totalRows);
         <input class="input" type="text" name="q" placeholder="Search title or description..."
           value="<?php echo h($q); ?>" style="min-width:260px;">
 
+        <select class="input" name="status" style="min-width:160px;">
+          <option value="all" <?php echo $status === 'all' ? 'selected' : ''; ?>>All status</option>
+          <option value="open" <?php echo $status === 'open' ? 'selected' : ''; ?>>Open</option>
+          <option value="closed" <?php echo $status === 'closed' ? 'selected' : ''; ?>>Closed</option>
+        </select>
+
         <select class="input" name="sort" style="min-width:170px;">
           <option value="recent" <?php echo $sort === 'recent' ? 'selected' : ''; ?>>Newest first</option>
           <option value="oldest" <?php echo $sort === 'oldest' ? 'selected' : ''; ?>>Oldest first</option>
@@ -179,7 +209,7 @@ $to   = min($offset + $perPage, $totalRows);
 
         <button class="btn btn--ghost" type="submit">Apply</button>
 
-        <?php if ($q !== '' || $status !== 'all'): ?>
+        <?php if ($q !== '' || $status !== 'all' || $sort !== 'recent'): ?>
           <a class="btn btn--ghost" href="tickets.php" style="text-decoration:none;">Clear</a>
         <?php endif; ?>
       </form>
@@ -187,12 +217,12 @@ $to   = min($offset + $perPage, $totalRows);
 
     <div style="height: 16px;"></div>
 
-    <?php if (count($tickets) === 0): ?>
-      <div class="alert">
-        No tickets found<?php echo ($q !== '' || $status !== 'all') ? " for the current filters." : "."; ?>
-      </div>
-    <?php else: ?>
-      <div style="display:grid; gap:10px;">
+    <div id="ticketsResults" style="display:grid; gap:10px;">
+      <?php if (count($tickets) === 0): ?>
+        <div class="alert">
+          No tickets found<?php echo ($q !== '' || $status !== 'all' || $sort !== 'recent') ? " for the current filters." : "."; ?>
+        </div>
+      <?php else: ?>
         <?php foreach ($tickets as $t): ?>
           <div class="alert" style="display:flex; justify-content:space-between; gap:10px; align-items:center;">
             <div>
@@ -217,40 +247,64 @@ $to   = min($offset + $perPage, $totalRows);
             </div>
           </div>
         <?php endforeach; ?>
-      </div>
+      <?php endif; ?>
+    </div>
 
-      <div style="height: 14px;"></div>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const searchInput = document.querySelector('input[name="q"]');
+        const statusSelect = document.querySelector('select[name="status"]');
+        const sortSelect = document.querySelector('select[name="sort"]');
+        const resultsBox = document.getElementById('ticketsResults');
 
-      <!-- Pagination controls -->
-      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-        <div class="muted" style="font-size:13px;">
-          Page <strong><?php echo $page; ?></strong> of <strong><?php echo $totalPages; ?></strong>
-        </div>
+        let debounceTimer = null;
 
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <?php if ($page > 1): ?>
-            <a class="btn btn--ghost" style="text-decoration:none;"
-              href="tickets.php?<?php echo h(build_query(['page' => $page - 1])); ?>">
-              ← Prev
-            </a>
-          <?php else: ?>
-            <span class="btn btn--ghost" style="opacity:.5; cursor:not-allowed;">← Prev</span>
-          <?php endif; ?>
+        function doLiveSearch() {
+          if (!resultsBox) return;
 
-          <?php if ($page < $totalPages): ?>
-            <a class="btn btn--ghost" style="text-decoration:none;"
-              href="tickets.php?<?php echo h(build_query(['page' => $page + 1])); ?>">
-              Next →
-            </a>
-          <?php else: ?>
-            <span class="btn btn--ghost" style="opacity:.5; cursor:not-allowed;">Next →</span>
-          <?php endif; ?>
-        </div>
-      </div>
+          const q = searchInput ? searchInput.value : '';
+          const status = statusSelect ? statusSelect.value : 'all';
+          const sort = sortSelect ? sortSelect.value : 'recent';
 
-    <?php endif; ?>
+          // Si está vacío, volvemos al listado normal sin q (pero respetando status/sort)
+          if (!q || q.length === 0) {
+            const url = new URL('tickets.php', window.location.href);
+            if (status && status !== 'all') url.searchParams.set('status', status);
+            if (sort && sort !== 'recent') url.searchParams.set('sort', sort);
+            url.searchParams.set('page', '1');
+            window.location.href = url.toString();
+            return;
+          }
 
-  </div>
-</div>
+          const url = new URL('tickets_search.php', window.location.href);
+          url.searchParams.set('q', q);
+          url.searchParams.set('status', status);
+          url.searchParams.set('sort', sort);
 
-<?php require_once __DIR__ . '/../views/layout_bottom.php'; ?>
+          fetch(url.toString())
+            .then(res => res.text())
+            .then(html => {
+              resultsBox.innerHTML = html;
+            })
+            .catch(() => {
+              resultsBox.innerHTML = '<div class="alert alert--error">Search error</div>';
+            });
+        }
+
+        function scheduleSearch() {
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(doLiveSearch, 250);
+        }
+
+        if (searchInput) searchInput.addEventListener('input', scheduleSearch);
+        if (statusSelect) statusSelect.addEventListener('change', scheduleSearch);
+        if (sortSelect) sortSelect.addEventListener('change', scheduleSearch);
+
+        // ✅ CLAVE: si llegas por URL con q ya relleno, ejecuta live search al cargar
+        if (searchInput && searchInput.value.trim().length > 0) {
+          doLiveSearch();
+        }
+      });
+    </script>
+
+    <?php require_once __DIR__ . '/../views/layout_bottom.php'; ?>
