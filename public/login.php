@@ -4,8 +4,8 @@ require_once __DIR__ . '/../views/layout_top.php';
 
 // Si ya estás logueado, te mando al dashboard (mejor UX)
 if (isset($_SESSION['user_id'])) {
-    header("Location: dashboard.php");
-    exit;
+  header("Location: dashboard.php");
+  exit;
 }
 ?>
 
@@ -16,7 +16,9 @@ if (isset($_SESSION['user_id'])) {
   </div>
 
   <div class="card__body">
+    <?php require_once __DIR__ . '/../src/security/csrf.php'; ?>
     <form class="form" action="login_process.php" method="POST" novalidate>
+      <?php echo csrf_input(); ?>
       <div class="row">
         <label class="label" for="email">Email</label>
         <input class="input" id="email" type="email" name="email" required>
@@ -30,7 +32,7 @@ if (isset($_SESSION['user_id'])) {
       <button class="btn" type="submit">Login</button>
 
       <a class="btn btn--ghost" href="register.php"
-         style="text-align:center; display:block; text-decoration:none;">
+        style="text-align:center; display:block; text-decoration:none;">
         Create a new account
       </a>
     </form>

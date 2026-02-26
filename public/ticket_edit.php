@@ -47,8 +47,11 @@ if ($ticket['status'] !== 'open') {
   </div>
 
   <div class="card__body">
+    <?php require_once __DIR__ . '/../src/security/csrf.php'; ?>
     <form class="form" action="ticket_update.php" method="POST" novalidate>
-      <input type="hidden" name="id" value="<?php echo (int)$ticket['id']; ?>">
+    <?php echo csrf_input(); ?>  
+    
+    <input type="hidden" name="id" value="<?php echo (int)$ticket['id']; ?>">
 
       <div class="row">
         <label class="label" for="title">Title</label>

@@ -3,6 +3,8 @@ $pageTitle = "Create Ticket";
 require_once __DIR__ . '/../views/layout_top.php';
 
 require_once __DIR__ . '/../src/auth/guards.php';
+
+
 require_auth();
 ?>
 
@@ -13,8 +15,12 @@ require_auth();
   </div>
 
   <div class="card__body">
+    <?php require_once __DIR__ . '/../src/security/csrf.php'; ?>
     <form class="form" action="ticket_store.php" method="POST" novalidate>
-      <div class="row">
+      
+    <?php echo csrf_input(); ?>
+    
+    <div class="row">
         <label class="label" for="title">Title</label>
         <input class="input" id="title" name="title" type="text" required maxlength="120">
       </div>

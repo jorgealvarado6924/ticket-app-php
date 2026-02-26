@@ -7,6 +7,9 @@ require_once __DIR__ . '/../src/support/flash.php';
 
 require_auth();
 
+require_once __DIR__ . '/../src/security/csrf.php';
+csrf_validate_or_die();
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header("Location: ticket_create.php");
     exit;

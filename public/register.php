@@ -16,7 +16,9 @@ require_once __DIR__ . '/../views/layout_top.php';
       <div style="height: 10px;"></div>
     <?php endif; ?>
 
+    <?php require_once __DIR__ . '/../src/security/csrf.php'; ?>
     <form class="form" action="register_process.php" method="POST" novalidate>
+      <?php echo csrf_input(); ?>
       <div class="row">
         <label class="label" for="username">Username</label>
         <input class="input" id="username" type="text" name="username" required>
