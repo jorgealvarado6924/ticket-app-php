@@ -38,7 +38,7 @@ if ($role === 'admin') {
 
   <div class="card__body">
     <a class="btn" href="ticket_create.php" style="text-decoration:none; display:inline-block;">+ New Ticket</a>
-    <a class="btn btn--ghost" href="dashboard.php" style="text-decoration:none; display:inline-block;">Dashboard</a>
+    
 
     <div style="height: 16px;"></div>
 

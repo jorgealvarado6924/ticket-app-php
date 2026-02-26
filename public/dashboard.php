@@ -21,14 +21,13 @@ require_auth();
 
         <div style="height: 14px;"></div>
 
-        <a class="btn" href="tickets.php" style="text-decoration:none; display:inline-block;">Tickets</a>
-        <a class="btn btn--ghost" href="profile.php" style="text-decoration:none; display:inline-block;">Profile</a>
+        
 
         <?php if ($_SESSION['role'] === 'admin'): ?>
           <a class="btn btn--ghost" href="admin.php" style="text-decoration:none; display:inline-block;">Admin</a>
         <?php endif; ?>
 
-        <a class="btn btn--ghost" href="logout.php" style="text-decoration:none; display:inline-block;">Logout</a>
+        
     </div>
   </div>
 

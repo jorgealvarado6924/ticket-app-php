@@ -80,11 +80,7 @@ if ($role !== 'admin' && (int)$ticket['user_id'] !== $userId) {
 <?php endif; ?>
 
 
-      <a class="btn btn--ghost"
-         href="tickets.php"
-         style="text-decoration:none; display:inline-block;">
-        Back
-      </a>
+      
     </div>
   </div>
 </div>
