@@ -15,7 +15,29 @@ $q = trim($_GET['q'] ?? '');
 $status = $_GET['status'] ?? 'all';
 $allowedStatus = ['all', 'open', 'closed'];
 if (!in_array($status, $allowedStatus, true)) {
-    $status = 'all';
+  $status = 'all';
+}
+
+$sort = $_GET['sort'] ?? 'recent';
+$allowedSort = ['recent', 'oldest', 'title_asc', 'title_desc'];
+if (!in_array($sort, $allowedSort, true)) {
+  $sort = 'recent';
+}
+
+switch ($sort) {
+  case 'oldest':
+    $orderBy = "t.id ASC";
+    break;
+  case 'title_asc':
+    $orderBy = "t.title ASC, t.id DESC";
+    break;
+  case 'title_desc':
+    $orderBy = "t.title DESC, t.id DESC";
+    break;
+  case 'recent':
+  default:
+    $orderBy = "t.id DESC";
+    break;
 }
 
 // --- Pagination (GET) ---
@@ -30,22 +52,22 @@ $params = [];
 
 // Role-based scope
 if ($role !== 'admin') {
-    $where[] = "t.user_id = ?";
-    $params[] = $userId;
+  $where[] = "t.user_id = ?";
+  $params[] = $userId;
 }
 
 // Status filter
 if ($status !== 'all') {
-    $where[] = "t.status = ?";
-    $params[] = $status;
+  $where[] = "t.status = ?";
+  $params[] = $status;
 }
 
 // Search filter
 if ($q !== '') {
-    $where[] = "(t.title LIKE ? OR t.description LIKE ?)";
-    $like = "%" . $q . "%";
-    $params[] = $like;
-    $params[] = $like;
+  $where[] = "(t.title LIKE ? OR t.description LIKE ?)";
+  $like = "%" . $q . "%";
+  $params[] = $like;
+  $params[] = $like;
 }
 
 $whereSql = count($where) ? ("WHERE " . implode(" AND ", $where)) : "";
@@ -67,41 +89,44 @@ $offset = ($page - 1) * $perPage;
  * 2) Query paginada
  */
 if ($role === 'admin') {
-    $sql = "SELECT t.id, t.title, t.status, t.created_at, u.username
-            FROM tickets t
-            JOIN users u ON u.id = t.user_id
-            $whereSql
-            ORDER BY t.id DESC
-            LIMIT $perPage OFFSET $offset";
+  $sql = "SELECT t.id, t.title, t.status, t.created_at, u.username
+        FROM tickets t
+        JOIN users u ON u.id = t.user_id
+        $whereSql
+        ORDER BY $orderBy
+        LIMIT $perPage OFFSET $offset";
 } else {
-    $sql = "SELECT t.id, t.title, t.status, t.created_at
-            FROM tickets t
-            $whereSql
-            ORDER BY t.id DESC
-            LIMIT $perPage OFFSET $offset";
+  $sql = "SELECT t.id, t.title, t.status, t.created_at
+        FROM tickets t
+        $whereSql
+        ORDER BY $orderBy
+        LIMIT $perPage OFFSET $offset";
 }
 
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $tickets = $stmt->fetchAll();
 
-function h(string $s): string {
-    return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+function h(string $s): string
+{
+  return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
-function build_query(array $overrides = []): string {
-    $base = [
-        'q' => $_GET['q'] ?? '',
-        'status' => $_GET['status'] ?? 'all',
-        'page' => $_GET['page'] ?? 1,
-    ];
-    $merged = array_merge($base, $overrides);
+function build_query(array $overrides = []): string
+{
+  $base = [
+    'q' => $_GET['q'] ?? '',
+    'status' => $_GET['status'] ?? 'all',
+    'sort' => $_GET['sort'] ?? 'recent',
+    'page' => $_GET['page'] ?? 1,
+  ];
+  $merged = array_merge($base, $overrides);
 
-    // limpia params vacíos
-    if ($merged['q'] === '') unset($merged['q']);
-    if ($merged['status'] === 'all') unset($merged['status']);
-
-    return http_build_query($merged);
+  // limpia params vacíos
+  if ($merged['q'] === '') unset($merged['q']);
+  if ($merged['status'] === 'all') unset($merged['status']);
+  if (($merged['sort'] ?? 'recent') === 'recent') unset($merged['sort']);
+  return http_build_query($merged);
 }
 
 $from = $totalRows === 0 ? 0 : ($offset + 1);
@@ -127,12 +152,13 @@ $to   = min($offset + $perPage, $totalRows);
       <!-- Filters -->
       <form method="GET" action="tickets.php" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:0;">
         <input class="input" type="text" name="q" placeholder="Search title or description..."
-               value="<?php echo h($q); ?>" style="min-width:260px;">
+          value="<?php echo h($q); ?>" style="min-width:260px;">
 
-        <select class="input" name="status" style="min-width:160px;">
-          <option value="all" <?php echo $status === 'all' ? 'selected' : ''; ?>>All status</option>
-          <option value="open" <?php echo $status === 'open' ? 'selected' : ''; ?>>Open</option>
-          <option value="closed" <?php echo $status === 'closed' ? 'selected' : ''; ?>>Closed</option>
+        <select class="input" name="sort" style="min-width:170px;">
+          <option value="recent" <?php echo $sort === 'recent' ? 'selected' : ''; ?>>Newest first</option>
+          <option value="oldest" <?php echo $sort === 'oldest' ? 'selected' : ''; ?>>Oldest first</option>
+          <option value="title_asc" <?php echo $sort === 'title_asc' ? 'selected' : ''; ?>>Title A → Z</option>
+          <option value="title_desc" <?php echo $sort === 'title_desc' ? 'selected' : ''; ?>>Title Z → A</option>
         </select>
 
         <!-- al aplicar filtros, vuelve a page 1 -->
@@ -171,8 +197,8 @@ $to   = min($offset + $perPage, $totalRows);
 
             <div style="display:flex; gap:8px;">
               <a class="btn btn--ghost"
-                 href="ticket_view.php?id=<?php echo (int)$t['id']; ?>"
-                 style="text-decoration:none;">
+                href="ticket_view.php?id=<?php echo (int)$t['id']; ?>"
+                style="text-decoration:none;">
                 View
               </a>
             </div>
@@ -191,7 +217,7 @@ $to   = min($offset + $perPage, $totalRows);
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
           <?php if ($page > 1): ?>
             <a class="btn btn--ghost" style="text-decoration:none;"
-               href="tickets.php?<?php echo h(build_query(['page' => $page - 1])); ?>">
+              href="tickets.php?<?php echo h(build_query(['page' => $page - 1])); ?>">
               ← Prev
             </a>
           <?php else: ?>
@@ -200,7 +226,7 @@ $to   = min($offset + $perPage, $totalRows);
 
           <?php if ($page < $totalPages): ?>
             <a class="btn btn--ghost" style="text-decoration:none;"
-               href="tickets.php?<?php echo h(build_query(['page' => $page + 1])); ?>">
+              href="tickets.php?<?php echo h(build_query(['page' => $page + 1])); ?>">
               Next →
             </a>
           <?php else: ?>
