@@ -18,6 +18,13 @@ if (!in_array($status, $allowedStatus, true)) {
     $status = 'all';
 }
 
+// --- Pagination (GET) ---
+$page = (int)($_GET['page'] ?? 1);
+if ($page < 1) $page = 1;
+
+$perPage = 10; // cambia a 8/12 si prefieres
+$offset = ($page - 1) * $perPage;
+
 $where = [];
 $params = [];
 
@@ -43,18 +50,35 @@ if ($q !== '') {
 
 $whereSql = count($where) ? ("WHERE " . implode(" AND ", $where)) : "";
 
-// Select
+/**
+ * 1) COUNT total results (para saber páginas)
+ */
+$countSql = "SELECT COUNT(*) FROM tickets t $whereSql";
+$countStmt = $pdo->prepare($countSql);
+$countStmt->execute($params);
+$totalRows = (int)$countStmt->fetchColumn();
+
+$totalPages = (int)ceil($totalRows / $perPage);
+if ($totalPages < 1) $totalPages = 1;
+if ($page > $totalPages) $page = $totalPages;
+$offset = ($page - 1) * $perPage;
+
+/**
+ * 2) Query paginada
+ */
 if ($role === 'admin') {
     $sql = "SELECT t.id, t.title, t.status, t.created_at, u.username
             FROM tickets t
             JOIN users u ON u.id = t.user_id
             $whereSql
-            ORDER BY t.id DESC";
+            ORDER BY t.id DESC
+            LIMIT $perPage OFFSET $offset";
 } else {
     $sql = "SELECT t.id, t.title, t.status, t.created_at
             FROM tickets t
             $whereSql
-            ORDER BY t.id DESC";
+            ORDER BY t.id DESC
+            LIMIT $perPage OFFSET $offset";
 }
 
 $stmt = $pdo->prepare($sql);
@@ -64,6 +88,24 @@ $tickets = $stmt->fetchAll();
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
+
+function build_query(array $overrides = []): string {
+    $base = [
+        'q' => $_GET['q'] ?? '',
+        'status' => $_GET['status'] ?? 'all',
+        'page' => $_GET['page'] ?? 1,
+    ];
+    $merged = array_merge($base, $overrides);
+
+    // limpia params vacíos
+    if ($merged['q'] === '') unset($merged['q']);
+    if ($merged['status'] === 'all') unset($merged['status']);
+
+    return http_build_query($merged);
+}
+
+$from = $totalRows === 0 ? 0 : ($offset + 1);
+$to   = min($offset + $perPage, $totalRows);
 ?>
 
 <div class="card" style="width:min(920px,100%);">
@@ -71,6 +113,7 @@ function h(string $s): string {
     <h1 class="title">Tickets</h1>
     <p class="subtitle">
       <?php echo ($role === 'admin') ? "Admin view: all tickets" : "Your tickets only"; ?>
+      · Showing <?php echo $from; ?>–<?php echo $to; ?> of <?php echo $totalRows; ?>
     </p>
   </div>
 
@@ -91,6 +134,9 @@ function h(string $s): string {
           <option value="open" <?php echo $status === 'open' ? 'selected' : ''; ?>>Open</option>
           <option value="closed" <?php echo $status === 'closed' ? 'selected' : ''; ?>>Closed</option>
         </select>
+
+        <!-- al aplicar filtros, vuelve a page 1 -->
+        <input type="hidden" name="page" value="1">
 
         <button class="btn btn--ghost" type="submit">Apply</button>
 
@@ -133,6 +179,36 @@ function h(string $s): string {
           </div>
         <?php endforeach; ?>
       </div>
+
+      <div style="height: 14px;"></div>
+
+      <!-- Pagination controls -->
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+        <div class="muted" style="font-size:13px;">
+          Page <strong><?php echo $page; ?></strong> of <strong><?php echo $totalPages; ?></strong>
+        </div>
+
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <?php if ($page > 1): ?>
+            <a class="btn btn--ghost" style="text-decoration:none;"
+               href="tickets.php?<?php echo h(build_query(['page' => $page - 1])); ?>">
+              ← Prev
+            </a>
+          <?php else: ?>
+            <span class="btn btn--ghost" style="opacity:.5; cursor:not-allowed;">← Prev</span>
+          <?php endif; ?>
+
+          <?php if ($page < $totalPages): ?>
+            <a class="btn btn--ghost" style="text-decoration:none;"
+               href="tickets.php?<?php echo h(build_query(['page' => $page + 1])); ?>">
+              Next →
+            </a>
+          <?php else: ?>
+            <span class="btn btn--ghost" style="opacity:.5; cursor:not-allowed;">Next →</span>
+          <?php endif; ?>
+        </div>
+      </div>
+
     <?php endif; ?>
 
   </div>
