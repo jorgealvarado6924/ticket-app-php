@@ -2,6 +2,13 @@
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+
+require_once __DIR__ . '/../src/support/flash.php';
+
+$brandLink = isset($_SESSION['user_id']) ? 'dashboard.php' : 'login.php';
+
+$flashError = flash_get('error');
+$flashSuccess = flash_get('success');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -13,18 +20,31 @@ if (session_status() === PHP_SESSION_NONE) {
 </head>
 <body>
   <div class="page">
+
     <header class="header">
       <div class="container">
-          <?php
-            $brandLink = isset($_SESSION['user_id']) ? 'dashboard.php' : 'login.php';
-          ?>
-
-          <a class="brand" href="<?php echo $brandLink; ?>">
-            <span>Ticket App</span>
-            <span class="badge">PHP + MySQL</span>
-          </a>
+        <a class="brand" href="<?php echo $brandLink; ?>">
+          <span>Ticket App</span>
+          <span class="badge">PHP + MySQL</span>
+        </a>
       </div>
     </header>
 
     <main class="main">
       <div class="container">
+
+        <?php if ($flashError): ?>
+          <div class="alert alert--error">
+            <?php echo htmlspecialchars($flashError); ?>
+          </div>
+          <div style="height: 10px;"></div>
+        <?php endif; ?>
+
+        <?php if ($flashSuccess): ?>
+          <div class="alert alert--success">
+            <?php echo htmlspecialchars($flashSuccess); ?>
+          </div>
+          <div style="height: 10px;"></div>
+        <?php endif; ?>
+
+        

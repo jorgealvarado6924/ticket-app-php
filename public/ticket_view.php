@@ -29,7 +29,6 @@ if (!$ticket) {
     exit("Not found");
 }
 
-// Security: user just can see their tickets
 if ($role !== 'admin' && (int)$ticket['user_id'] !== $userId) {
     http_response_code(403);
     exit("403 Forbidden");
@@ -48,32 +47,46 @@ if ($role !== 'admin' && (int)$ticket['user_id'] !== $userId) {
   </div>
 
   <div class="card__body">
-        <?php if (isset($_SESSION['error'])): ?>
-        <div class="alert alert--error"><?php echo htmlspecialchars($_SESSION['error']); ?></div>
-        <?php unset($_SESSION['error']); ?>
-        <div style="height: 10px;"></div>
-        <?php endif; ?>
     <h3 style="margin-top:0;"><?php echo htmlspecialchars($ticket['title']); ?></h3>
-    <p style="white-space:pre-wrap;"><?php echo htmlspecialchars($ticket['description']); ?></p>
+
+    <p style="white-space:pre-wrap;">
+      <?php echo htmlspecialchars($ticket['description']); ?>
+    </p>
 
     <div style="height: 14px;"></div>
 
-<?php if ($ticket['status'] === 'open'): ?>
+    <?php if ($ticket['status'] === 'open'): ?>
+      <!-- Form de close totalmente separado -->
+      <form id="closeForm" action="ticket_close.php" method="POST"></form>
+    <?php endif; ?>
+
+    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+      <?php if ($ticket['status'] === 'open'): ?>
+    <?php require_once __DIR__ . '/../src/security/csrf.php'; ?>
+
+    <form action="ticket_close.php" method="POST" style="display:inline-block; margin:0;">
+      <?php echo csrf_input(); ?>
+      <input type="hidden" name="id" value="<?php echo (int)$ticket['id']; ?>">
+      <button class="btn" type="submit">Close ticket</button>
+    </form>
+
   <a class="btn btn--ghost"
      href="ticket_edit.php?id=<?php echo (int)$ticket['id']; ?>"
-     style="text-decoration:none; display:inline-block;">
-     Edit
+     style="text-decoration:none; display:inline-block; margin-left:8px;">
+    Edit
   </a>
-
-  <form action="ticket_close.php" method="POST" style="display:inline-block;">
-    <input type="hidden" name="id" value="<?php echo (int)$ticket['id']; ?>">
-    <button class="btn" type="submit">Close ticket</button>
-  </form>
 <?php else: ?>
-  <div class="alert">This ticket is closed.</div>
+  <div class="alert" style="margin:0;">This ticket is closed.</div>
 <?php endif; ?>
 
-<a class="btn btn--ghost" href="tickets.php" style="text-decoration:none; display:inline-block;">Back</a>
+
+      <a class="btn btn--ghost"
+         href="tickets.php"
+         style="text-decoration:none; display:inline-block;">
+        Back
+      </a>
+    </div>
+  </div>
 </div>
 
 <?php require_once __DIR__ . '/../views/layout_bottom.php'; ?>

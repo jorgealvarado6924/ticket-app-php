@@ -1,6 +1,12 @@
 <?php
 $pageTitle = "Login";
 require_once __DIR__ . '/../views/layout_top.php';
+
+// Si ya estás logueado, te mando al dashboard (mejor UX)
+if (isset($_SESSION['user_id'])) {
+    header("Location: dashboard.php");
+    exit;
+}
 ?>
 
 <div class="card">
@@ -10,12 +16,6 @@ require_once __DIR__ . '/../views/layout_top.php';
   </div>
 
   <div class="card__body">
-    <?php if (isset($_SESSION['error'])): ?>
-      <div class="alert alert--error"><?php echo htmlspecialchars($_SESSION['error']); ?></div>
-      <?php unset($_SESSION['error']); ?>
-      <div style="height: 10px;"></div>
-    <?php endif; ?>
-
     <form class="form" action="login_process.php" method="POST" novalidate>
       <div class="row">
         <label class="label" for="email">Email</label>
@@ -29,7 +29,8 @@ require_once __DIR__ . '/../views/layout_top.php';
 
       <button class="btn" type="submit">Login</button>
 
-      <a class="btn btn--ghost" href="register.php" style="text-align:center; display:block; text-decoration:none;">
+      <a class="btn btn--ghost" href="register.php"
+         style="text-align:center; display:block; text-decoration:none;">
         Create a new account
       </a>
     </form>

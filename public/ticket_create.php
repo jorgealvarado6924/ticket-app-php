@@ -13,12 +13,6 @@ require_auth();
   </div>
 
   <div class="card__body">
-    <?php if (isset($_SESSION['error'])): ?>
-      <div class="alert alert--error"><?php echo htmlspecialchars($_SESSION['error']); ?></div>
-      <?php unset($_SESSION['error']); ?>
-      <div style="height: 10px;"></div>
-    <?php endif; ?>
-
     <form class="form" action="ticket_store.php" method="POST" novalidate>
       <div class="row">
         <label class="label" for="title">Title</label>
@@ -31,7 +25,9 @@ require_auth();
       </div>
 
       <button class="btn" type="submit">Create</button>
-      <a class="btn btn--ghost" href="tickets.php" style="text-decoration:none; display:block; text-align:center;">
+
+      <a class="btn btn--ghost" href="tickets.php"
+         style="text-decoration:none; display:block; text-align:center;">
         Back to tickets
       </a>
     </form>

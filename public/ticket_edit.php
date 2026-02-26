@@ -16,10 +16,7 @@ if ($id <= 0) {
 $userId = (int)$_SESSION['user_id'];
 $role   = $_SESSION['role'] ?? 'user';
 
-$sql = "SELECT id, user_id, title, description, status
-        FROM tickets
-        WHERE id = ?";
-$stmt = $pdo->prepare($sql);
+$stmt = $pdo->prepare("SELECT id, user_id, title, description, status FROM tickets WHERE id = ?");
 $stmt->execute([$id]);
 $ticket = $stmt->fetch();
 
@@ -28,15 +25,16 @@ if (!$ticket) {
     exit("Not found");
 }
 
-// Permissions: user just their tickets
+// Permisos: user solo sus tickets
 if ($role !== 'admin' && (int)$ticket['user_id'] !== $userId) {
     http_response_code(403);
     exit("403 Forbidden");
 }
 
-// If it opens it can be edited
+// Regla: CLOSED no se edita (nadie)
 if ($ticket['status'] !== 'open') {
-    $_SESSION['error'] = "Closed tickets cannot be edited";
+    require_once __DIR__ . '/../src/support/flash.php';
+    flash_set('error', 'Closed tickets cannot be edited');
     header("Location: ticket_view.php?id=" . $id);
     exit;
 }
@@ -49,12 +47,6 @@ if ($ticket['status'] !== 'open') {
   </div>
 
   <div class="card__body">
-    <?php if (isset($_SESSION['error'])): ?>
-      <div class="alert alert--error"><?php echo htmlspecialchars($_SESSION['error']); ?></div>
-      <?php unset($_SESSION['error']); ?>
-      <div style="height: 10px;"></div>
-    <?php endif; ?>
-
     <form class="form" action="ticket_update.php" method="POST" novalidate>
       <input type="hidden" name="id" value="<?php echo (int)$ticket['id']; ?>">
 
@@ -72,7 +64,8 @@ if ($ticket['status'] !== 'open') {
       </div>
 
       <button class="btn" type="submit">Save changes</button>
-      <a class="btn btn--ghost" href="ticket_view.php?id=<?php echo (int)$ticket['id']; ?>"
+      <a class="btn btn--ghost"
+         href="ticket_view.php?id=<?php echo (int)$ticket['id']; ?>"
          style="text-decoration:none; display:inline-block;">
         Cancel
       </a>
